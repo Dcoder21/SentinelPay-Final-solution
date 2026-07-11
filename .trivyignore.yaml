@@ -1,0 +1,14 @@
+misconfigurations:
+  - id: AWS-0054
+    paths:
+      - "infra/modules/compute_edge/main.tf"
+    statement: "Accepted for SentinelPay dev/staging. 
+      HTTP is used temporarily to simplify ALB testing and ZAP baseline scanning. 
+      Production should use ACM TLS, HTTPS 443 and HTTP-to-HTTPS redirect."
+
+  - id: AWS-0104
+    paths:
+      - "infra/modules/compute_edge/main.tf"
+    statement: "Accepted for SentinelPay dev/staging. 
+      ECS tasks require outbound access for AWS APIs, image pulls and logging. 
+      Production should restrict egress using VPC endpoints, NAT controls and tighter service/CIDR rules."
