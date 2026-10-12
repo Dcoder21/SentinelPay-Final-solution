@@ -1,0 +1,42 @@
+{
+  "resource_changes": [
+    {
+      "address": "aws_db_instance.unencrypted_db",
+      "type": "aws_db_instance",
+      "change": {
+        "after": {
+          "storage_encrypted": false
+        }
+      }
+    },
+    {
+      "address": "aws_ebs_volume.unencrypted_volume",
+      "type": "aws_ebs_volume",
+      "change": {
+        "after": {
+          "encrypted": false
+        }
+      }
+    },
+    {
+      "address": "aws_dynamodb_table.unencrypted_table",
+      "type": "aws_dynamodb_table",
+      "change": {
+        "after": {
+          "server_side_encryption": {
+            "enabled": false
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket_server_side_encryption_configuration.bad_config",
+      "type": "aws_s3_bucket_server_side_encryption_configuration",
+      "change": {
+        "after": {
+          "rule": []
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+Resources:
+
+  IAMPasswordPolicy:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-iam-password-policy
+      Description: Checks whether the IAM password policy meets required settings
+      Source:
+        Owner: AWS
+        SourceIdentifier: IAM_PASSWORD_POLICY
+
+  RootAccountMFAEnabled:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-root-account-mfa-enabled
+      Description: Checks whether MFA is enabled for the root account
+      Source:
+        Owner: AWS
+        SourceIdentifier: ROOT_ACCOUNT_MFA_ENABLED
+
+  IAMUserMFAEnabled:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-iam-user-mfa-enabled
+      Description: Checks whether IAM users have MFA enabled
+      Source:
+        Owner: AWS
+        SourceIdentifier: IAM_USER_MFA_ENABLED
+
+  IAMUserNoPoliciesCheck:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-iam-user-no-policies
+      Description: Checks that IAM users do not have inline policies
+      Source:
+        Owner: AWS
+        SourceIdentifier: IAM_USER_NO_POLICIES_CHECK
+
+  AccessKeysRotated:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-access-keys-rotated
+      Description: Checks whether access keys are rotated
+      InputParameters:
+        maxAccessKeyAge: 90
+      Source:
+        Owner: AWS
+        SourceIdentifier: ACCESS_KEYS_ROTATED
+
+  CloudTrailEnabled:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-cloudtrail-enabled
+      Description: Checks whether CloudTrail is enabled
+      Source:
+        Owner: AWS
+        SourceIdentifier: CLOUD_TRAIL_ENABLED
+
+  CloudTrailEncryptionEnabled:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-cloudtrail-encryption-enabled
+      Description: Checks whether CloudTrail is encrypted with KMS
+      Source:
+        Owner: AWS
+        SourceIdentifier: CLOUD_TRAIL_ENCRYPTION_ENABLED
+
+  S3BucketPublicReadProhibited:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-s3-public-read-prohibited
+      Description: Checks that S3 buckets do not allow public read access
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_PUBLIC_READ_PROHIBITED
+
+  S3BucketPublicWriteProhibited:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-s3-public-write-prohibited
+      Description: Checks that S3 buckets do not allow public write access
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_PUBLIC_WRITE_PROHIBITED
+
+  S3BucketSSLRequestsOnly:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: cis-s3-ssl-only
+      Description: Checks that S3 buckets require SSL
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_SSL_REQUESTS_ONLY
+        

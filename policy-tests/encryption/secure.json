@@ -1,0 +1,48 @@
+{
+  "resource_changes": [
+    {
+      "address": "aws_db_instance.sentinelpay_db",
+      "type": "aws_db_instance",
+      "change": {
+        "after": {
+          "storage_encrypted": true
+        }
+      }
+    },
+    {
+      "address": "aws_ebs_volume.sentinelpay_volume",
+      "type": "aws_ebs_volume",
+      "change": {
+        "after": {
+          "encrypted": true
+        }
+      }
+    },
+    {
+      "address": "aws_dynamodb_table.sentinelpay_table",
+      "type": "aws_dynamodb_table",
+      "change": {
+        "after": {
+          "server_side_encryption": {
+            "enabled": true
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket_server_side_encryption_configuration.sentinelpay_data",
+      "type": "aws_s3_bucket_server_side_encryption_configuration",
+      "change": {
+        "after": {
+          "rule": [
+            {
+              "apply_server_side_encryption_by_default": {
+                "sse_algorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "resource_changes": [
+    {
+      "address": "aws_security_group_rule.alb_https",
+      "type": "aws_security_group_rule",
+      "change": {
+        "after": {
+          "type": "ingress",
+          "from_port": 443,
+          "to_port": 443,
+          "protocol": "tcp",
+          "cidr_blocks": [
+            "0.0.0.0/0"
+          ]
+        }
+      }
+    }
+  ]
+}

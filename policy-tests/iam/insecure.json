@@ -1,0 +1,24 @@
+{
+  "resource_changes": [
+    {
+      "address": "aws_iam_policy.sentinelpay_insecure",
+      "type": "aws_iam_policy",
+      "change": {
+        "after": {
+          "policy": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:*",
+                  "ec2:DescribeInstances"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

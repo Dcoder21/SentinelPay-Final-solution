@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: sentinelpay-postgres
+    read_only: true          # Enforcing a read-only filesystem
+    tmpfs:                   # Only allow write access to these directories
+      - /var/run/postgresql
+      - /tmp
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sentinelpay
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./seed/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel} -d ${POSTGRES_DB:-sentinelpay}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true      #Add to prevent privilege escalation via setuid or setgid binaries
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelpay-redis
+    read_only: true          # Enforcing a read-only filesystem
+    tmpfs:                   # Only allow write access to these directories
+      - /var/lib/redis
+      - /data
+      - /tmp
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true      #Add to prevent privilege escalation via setuid or setgid binaries
+
+  payments-api:
+    build: ./services/payments-api
+    container_name: sentinelpay-payments
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      RATE_LIMIT_KEY_SECRET: ${RATE_LIMIT_KEY_SECRET}
+      SESSION_SIGNING_KEY: ${SESSION_SIGNING_KEY}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: af-south-1
+      KYC_BUCKET: sentinelpay-kyc-documents
+      WEBHOOK_TIMEOUT: "10"
+      ENVIRONMENT: development
+    depends_on:
+      - postgres
+      - redis
+
+  kyc-api:
+    build: ./services/kyc-api
+    container_name: sentinelpay-kyc
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: af-south-1
+      KYC_BUCKET: sentinelpay-kyc-documents
+      BVN_CBN_URL: ${BVN_CBN_URL}
+      BVN_PROVIDER_NG_URL: ${BVN_PROVIDER_NG_URL}
+      ENVIRONMENT: development
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:

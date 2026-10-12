@@ -1,0 +1,371 @@
+name: SentinelPay CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-workflow:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Confirm workflow is running
+        run: echo "SentinelPay GitHub Actions pipeline is working"
+
+  gitleaks:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full Git history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          GITLEAKS_VERSION="8.28.0"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run SentinelPay Gitleaks scan
+        run: |
+          gitleaks git . \
+            --config .gitleaks.toml \
+            --baseline-path gitleaks-baseline.json \
+            --redact \
+            --verbose
+  bandit:
+    name: Bandit Python Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
+
+      - name: Scan SentinelPay Python services
+        run: |
+          bandit -r Amdari-Project--02/services/payments-api/app \
+           Amdari-Project--02/services/kyc-api/app \
+           -lll -ii
+  semgrep:
+    name: Semgrep SAST Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      - name: Run Semgrep security scan
+        run: |
+          semgrep scan \
+            --config p/python \
+            --config p/security-audit \
+            --severity ERROR \
+            --error \
+            Amdari-Project--02/services
+  trivy-dependencies:
+    name: Trivy Dependency Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Scan SentinelPay dependencies
+        run: |
+          trivy fs Amdari-Project--02 \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 1
+  checkov:
+    name: Checkov Terraform Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Checkov
+        run: |
+          python -m pip install --upgrade pip
+          pip install checkov
+
+      - name: Run Checkov
+        run: |
+         checkov \
+         -d infra \
+         --framework terraform \
+         --soft-fail \
+         --hard-fail-on CKV_AWS_145,CKV_AWS_16,CKV_AWS_17,CKV2_AWS_28,CKV_AWS_2,CKV2_AWS_20,CKV_AWS_103,CKV2_AWS_3,CKV_AWS_238,CKV2_AWS_11 \
+         --compact
+  tfsec:
+    name: tfsec Terraform Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install tfsec
+        run: |
+          TFSEC_VERSION="v1.28.13"
+          curl -sSL \
+            "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64" \
+            -o tfsec
+          chmod +x tfsec
+          sudo mv tfsec /usr/local/bin/tfsec
+          tfsec --version
+
+      - name: Run tfsec
+        run: |
+          tfsec infra \
+            --minimum-severity HIGH \
+            --no-colour
+  trivy-images:
+    name: Trivy Container Image Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build payments-api image
+        run: |
+          docker build \
+            -t sentinelpay-payments:${{ github.sha }} \
+            Amdari-Project--02/services/payments-api
+
+      - name: Build kyc-api image
+        run: |
+          docker build \
+            -t sentinelpay-kyc:${{ github.sha }} \
+            Amdari-Project--02/services/kyc-api
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Scan payments-api image
+        id: trivy_payments
+        continue-on-error: true
+        run: |
+          trivy image sentinelpay-payments:${{ github.sha }} \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --output trivy-payments-report.json \
+            --exit-code 1
+
+      - name: Scan kyc-api image
+        id: trivy_kyc
+        continue-on-error: true
+        run: |
+          trivy image sentinelpay-kyc:${{ github.sha }} \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --output trivy-kyc-report.json \
+            --exit-code 1
+      - name: Upload Trivy image scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-scan-reports
+          path: |
+            trivy-payments-report.json
+            trivy-kyc-report.json
+      - name: Enforce Trivy image security gate
+        if: always()
+        run: |
+          if [ "${{ steps.trivy_payments.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy_kyc.outcome }}" = "failure" ]; then
+            echo "HIGH or CRITICAL vulnerabilities detected in one or more SentinelPay images."
+            exit 1
+          fi
+
+          echo "No HIGH or CRITICAL vulnerabilities detected."
+
+  terraform-validate:
+    name: Terraform Format and Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.4"
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive infra Bootstrap
+      - name: Initialize and validate dev without AWS access
+        working-directory: infra/environments/dev
+        run: |
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate
+      - name: Initialize and validate bootstrap without AWS access
+        working-directory: Bootstrap
+        run: |
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate
+
+  application-tests:
+    name: Application Smoke Tests (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [payments-api, kyc-api]
+    defaults:
+      run:
+        working-directory: Amdari-Project--02/services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt pytest
+      - name: Run service smoke tests
+        run: python ../../../scripts/run_service_tests.py ${{ matrix.service }}
+
+  deploy-infrastructure:
+    name: Gated Dev Infrastructure Deployment
+    needs:
+      - test-workflow
+      - gitleaks
+      - bandit
+      - semgrep
+      - trivy-dependencies
+      - checkov
+      - tfsec
+      - trivy-images
+      - terraform-validate
+      - application-tests
+      - policy-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Dcoder21/SentinelPay-Final-solution'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: sentinelpay-dev-infrastructure
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.4"
+      - name: Authenticate with bootstrap infrastructure role
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_INFRA_ROLE_ARN }}
+          aws-region: eu-west-1
+          role-duration-seconds: 7200
+      - name: Install Conftest
+        run: |
+          curl --fail --location --silent --show-error https://github.com/open-policy-agent/conftest/releases/download/v0.62.0/conftest_0.62.0_Linux_x86_64.tar.gz -o conftest.tar.gz
+          tar xzf conftest.tar.gz
+          sudo mv conftest /usr/local/bin/
+      - name: Supply versioned dev inputs
+        run: cp infra/environments/dev/terraform.tfvars.example infra/environments/dev/terraform.tfvars
+      - name: Initialize remote backend
+        working-directory: infra/environments/dev
+        run: terraform init -input=false -lockfile=readonly
+      - name: Create the deployment plan
+        working-directory: infra/environments/dev
+        run: |
+          terraform plan -input=false -lock-timeout=5m -out=tfplan
+          terraform show -json tfplan > plan.json
+      - name: Enforce OPA on the actual plan
+        run: conftest test infra/environments/dev/plan.json --policy policy/terraform --all-namespaces
+      - name: Apply the plan that passed OPA
+        working-directory: infra/environments/dev
+        run: terraform apply -input=false -lock-timeout=5m tfplan
+      - name: Verify ECS and the smoke-test endpoint
+        working-directory: infra/environments/dev
+        run: |
+          cluster=$(terraform output -raw ecs_cluster)
+          service=$(terraform output -raw ecs_service)
+          aws ecs wait services-stable --region eu-west-1 --cluster "$cluster" --services "$service"
+          url=$(terraform output -raw smoke_test_url)
+          curl --fail --retry 5 --retry-delay 10 "$url"
+      - name: Remove runner-local plan files
+        if: always()
+        working-directory: infra/environments/dev
+        run: rm -f tfplan plan.json
+
+  policy-tests:
+    name: Deployment Gate and OPA Regression Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test tools
+        run: |
+          python -m pip install PyYAML
+          curl --fail --location --silent --show-error https://github.com/open-policy-agent/conftest/releases/download/v0.62.0/conftest_0.62.0_Linux_x86_64.tar.gz -o conftest.tar.gz
+          tar xzf conftest.tar.gz
+          sudo mv conftest /usr/local/bin/
+      - name: Verify dependency graph and policy rejection cases
+        run: python scripts/test_pipeline.py

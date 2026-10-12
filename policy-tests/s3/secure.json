@@ -1,0 +1,25 @@
+{
+  "resource_changes": [
+    {
+      "address": "aws_s3_bucket.sentinelpay_data",
+      "type": "aws_s3_bucket",
+      "change": {
+        "after": {
+          "acl": "private"
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket_public_access_block.sentinelpay_data",
+      "type": "aws_s3_bucket_public_access_block",
+      "change": {
+        "after": {
+          "block_public_acls": true,
+          "ignore_public_acls": true,
+          "block_public_policy": true,
+          "restrict_public_buckets": true
+        }
+      }
+    }
+  ]
+}
