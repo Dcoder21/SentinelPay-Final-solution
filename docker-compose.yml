@@ -4,7 +4,7 @@ services:
     container_name: sentinelpay-postgres
     environment:
       POSTGRES_USER: sentinel
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD} # gitleaks:allow environment reference, no embedded credential
       POSTGRES_DB: sentinelpay
     ports:
       - "5432:5432"

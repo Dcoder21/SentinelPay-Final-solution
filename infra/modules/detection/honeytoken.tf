@@ -66,7 +66,7 @@ resource "aws_secretsmanager_secret_version" "honeytoken" {
   secret_id = aws_secretsmanager_secret.honeytoken.id
 
   secret_string = jsonencode({
-    AWS_ACCESS_KEY_ID     = aws_iam_access_key.honeytoken.id # gitleaks:allow Terraform reference, no embedded credential
+    AWS_ACCESS_KEY_ID     = aws_iam_access_key.honeytoken.id     # gitleaks:allow Terraform reference, no embedded credential
     AWS_SECRET_ACCESS_KEY = aws_iam_access_key.honeytoken.secret # gitleaks:allow Terraform reference, no embedded credential
   })
 }
