@@ -6,7 +6,8 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --upgrade --no-cache-dir pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    python -m pip uninstall -y pip
 COPY . .
 RUN python -c "import urllib.request; urllib.request.urlretrieve('https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem', '/app/rds-global-bundle.pem')"
 RUN rm -f *.lock *old.txt *bak.txt Pipfile* poetry*
