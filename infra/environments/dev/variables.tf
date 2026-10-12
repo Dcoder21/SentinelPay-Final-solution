@@ -114,3 +114,9 @@ variable "allow_public_https_egress" {
   type        = bool
   default     = false
 }
+
+variable "image_tag" {
+  description = "Immutable Git commit of images scanned by this workflow"
+  type        = string
+  default     = "pending"
+}

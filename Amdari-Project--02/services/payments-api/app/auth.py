@@ -32,8 +32,8 @@ from argon2.exceptions import (
 # The values are mandatory environment variables. There is deliberately no
 # default secret, preventing the application from silently falling back to a
 # known development credential.
-JWT_PRIVATE_KEY = os.environ["JWT_PRIVATE_KEY"]
-JWT_PUBLIC_KEY = os.environ["JWT_PUBLIC_KEY"]
+JWT_PRIVATE_KEY = os.environ["JWT_PRIVATE_KEY"].replace("\\n", "\n")
+JWT_PUBLIC_KEY = os.environ["JWT_PUBLIC_KEY"].replace("\\n", "\n")
 
 JWT_ALGORITHM = "RS256"
 

@@ -18,8 +18,8 @@ variable "vpc_cidr" {
   type        = string
 }
 
-variable "public_subnet_ids" {
-  description = "Public subnet IDs used by the ALB"
+variable "private_subnet_ids" {
+  description = "Private subnet IDs used by the ALB and VPC link"
   type        = list(string)
 }
 

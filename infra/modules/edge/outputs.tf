@@ -3,7 +3,7 @@ output "alb_dns_name" {
 }
 output "listener_arn" {
   description = "ARN of the HTTPS listener"
-  value       = try(aws_lb_listener.https[0].arn, null)
+  value       = aws_lb_listener.private.arn
 }
 output "alb_security_group_id" {
   description = "Security group ID of the Application Load Balancer"
@@ -12,6 +12,6 @@ output "alb_security_group_id" {
 
 output "target_group_arn" {
   description = "ARN of the ALB target group"
-  value       = aws_lb_target_group.this.arn
+  value       = aws_lb_target_group.this["payments"].arn
 
 }

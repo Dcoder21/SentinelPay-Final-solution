@@ -56,12 +56,13 @@ resource "aws_security_group" "ecs" {
 # =========================================================
 
 resource "aws_vpc_security_group_ingress_rule" "alb_to_ecs" {
+  for_each          = { payments = 8001, kyc = 8002 }
   security_group_id = aws_security_group.ecs.id
 
   referenced_security_group_id = var.alb_security_group_id
 
-  from_port   = var.container_port
-  to_port     = var.container_port
+  from_port   = each.value
+  to_port     = each.value
   ip_protocol = "tcp"
 
   description = "Allow application traffic from ALB to ECS tasks"
@@ -237,105 +238,79 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 
-# =========================================================
-# ECS TASK DEFINITION
-# =========================================================
 
-resource "aws_ecs_task_definition" "this" {
-  family = "${local.name_prefix}-placeholder"
-
-  requires_compatibilities = [
-    "FARGATE"
-  ]
-
-  network_mode = "awsvpc"
-
-  cpu    = "256"
-  memory = "512"
-
-  execution_role_arn = aws_iam_role.execution.arn
-
-  container_definitions = jsonencode([
-    {
-      name      = "placeholder"
-      image     = var.container_image
-      essential = true
-
-      portMappings = [
-        {
-          containerPort = var.container_port
-          hostPort      = var.container_port
-          protocol      = "tcp"
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.this.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "ecs"
-        }
-      }
-    }
-  ])
-
-  tags = merge(
-    var.tags,
-    {
-      Name        = "${local.name_prefix}-task-definition"
-      Environment = var.environment
-    }
-  )
+resource "aws_iam_role_policy" "execution_secrets" {
+  name = "${local.name_prefix}-execution-secrets"
+  role = aws_iam_role.execution.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = var.secret_arns },
+    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = var.kms_key_arn }
+  ] })
 }
-
-
-# =========================================================
-# ECS SERVICE
-# =========================================================
-
-resource "aws_ecs_service" "this" {
-  name = "${local.name_prefix}-service"
-
+resource "aws_iam_role" "runtime" {
+  for_each           = var.services
+  name               = "${local.name_prefix}-${each.key}-runtime"
+  assume_role_policy = aws_iam_role.execution.assume_role_policy
+}
+resource "aws_iam_role_policy" "kyc_documents" {
+  name = "${local.name_prefix}-kyc-documents"
+  role = aws_iam_role.runtime["kyc"].id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject"], Resource = "arn:aws:s3:::${var.kyc_bucket}/users/*" },
+    { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.kms_key_arn }
+  ] })
+}
+locals {
+  tasks = merge(var.services, { migration = var.migration })
+}
+resource "aws_ecs_task_definition" "application" {
+  for_each                 = local.tasks
+  family                   = "${local.name_prefix}-${each.key}"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = "512"
+  memory                   = "1024"
+  execution_role_arn       = aws_iam_role.execution.arn
+  task_role_arn            = each.key == "migration" ? null : aws_iam_role.runtime[each.key].arn
+  container_definitions = jsonencode([merge({
+    name                   = each.key
+    image                  = each.value.image
+    essential              = true
+    readonlyRootFilesystem = true
+    environment            = [for k, v in each.value.environment : { name = k, value = v }]
+    secrets                = [for k, v in each.value.secrets : { name = k, valueFrom = v }]
+    portMappings           = each.key == "migration" ? [] : [{ containerPort = each.value.port, hostPort = each.value.port, protocol = "tcp" }]
+    logConfiguration = { logDriver = "awslogs", options = {
+      awslogs-group         = aws_cloudwatch_log_group.this.name
+      awslogs-region        = var.aws_region
+      awslogs-stream-prefix = each.key
+    } }
+  }, each.key == "migration" ? { command = ["python", "-m", "app.migrate"] } : {})])
+  depends_on = [aws_iam_role_policy.execution_secrets, aws_iam_role_policy_attachment.execution]
+}
+resource "aws_ecs_service" "application" {
+  for_each        = var.services
+  name            = "${local.name_prefix}-${each.key}"
   cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.this.arn
-
-  desired_count         = var.desired_count
-  launch_type           = "FARGATE"
-  wait_for_steady_state = true
-
+  task_definition = aws_ecs_task_definition.application[each.key].arn
+  # Scanned images and schema are published before the workflow scales services.
+  desired_count                     = 0
+  launch_type                       = "FARGATE"
+  health_check_grace_period_seconds = 90
   deployment_circuit_breaker {
     enable   = true
     rollback = true
   }
-
   network_configuration {
-    subnets = var.private_subnet_ids
-
-    security_groups = [
-      aws_security_group.ecs.id
-    ]
-
-    # ECS tasks remain private.
+    subnets          = var.private_subnet_ids
+    security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = false
   }
-
   load_balancer {
-    target_group_arn = var.target_group_arn
-    container_name   = "placeholder"
-    container_port   = var.container_port
+    target_group_arn = var.target_groups[each.key]
+    container_name   = each.key
+    container_port   = each.value.port
   }
-
-  tags = merge(
-    var.tags,
-    {
-      Name        = "${local.name_prefix}-service"
-      Environment = var.environment
-    }
-  )
-
-  depends_on = [
-    aws_iam_role_policy_attachment.execution
-  ]
+  lifecycle { ignore_changes = [desired_count, task_definition] }
+  depends_on = [aws_iam_role_policy.kyc_documents]
 }

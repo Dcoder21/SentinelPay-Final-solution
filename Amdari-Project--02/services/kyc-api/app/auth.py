@@ -24,7 +24,7 @@ from flask import (
 # Restrict verification to RS256 and reject unsigned/other-algorithm tokens.
 JWT_PUBLIC_KEY = os.environ[
     "JWT_PUBLIC_KEY"
-]
+].replace("\\n", "\n")
 
 JWT_ALGORITHM = "RS256"
 

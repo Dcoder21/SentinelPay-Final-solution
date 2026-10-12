@@ -20,7 +20,6 @@ module "network" { #tfsec:ignore:aws-iam-no-policy-wildcards
 }
 
 
-# tfsec:ignore:aws-elb-alb-not-public Public ALB is the intended WAF-protected ingress; workloads remain private.
 module "edge" {
   source = "../../modules/edge"
 
@@ -30,7 +29,7 @@ module "edge" {
   vpc_id   = module.network.vpc_id
   vpc_cidr = var.vpc_cidr
 
-  public_subnet_ids = module.network.public_subnet_ids
+  private_subnet_ids = module.network.private_subnet_ids
 
   container_port = var.container_port
 
@@ -50,7 +49,6 @@ module "compute" {
   environment               = var.environment
   name_prefix               = "${var.project_name}-${var.environment}"
   allow_public_https_egress = var.allow_public_https_egress
-  depends_on                = [module.edge, module.network]
 
   # ======================================================
   # NETWORK
@@ -67,6 +65,12 @@ module "compute" {
 
   alb_security_group_id = module.edge.alb_security_group_id
   target_group_arn      = module.edge.target_group_arn
+  target_groups         = module.edge.target_groups
+  services              = local.application_services
+  migration             = local.migration_config
+  secret_arns           = [aws_secretsmanager_secret.application.arn, module.data.redis_secret_arn, module.rds.master_secret_arn]
+  kyc_bucket            = module.data.kyc_bucket_name
+  listener_arn          = module.edge.listener_arn
 
   # ======================================================
   # ECS

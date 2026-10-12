@@ -76,3 +76,14 @@ variable "allow_public_https_egress" {
   type    = bool
   default = false
 }
+
+variable "services" {
+  type = map(object({ image = string, port = number, environment = map(string), secrets = map(string) }))
+}
+variable "migration" {
+  type = object({ image = string, port = number, environment = map(string), secrets = map(string) })
+}
+variable "target_groups" { type = map(string) }
+variable "secret_arns" { type = list(string) }
+variable "kyc_bucket" { type = string }
+variable "listener_arn" { type = string }

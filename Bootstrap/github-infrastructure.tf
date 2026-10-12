@@ -43,7 +43,7 @@ resource "aws_iam_role_policy" "github_infrastructure" {
           "rds:*", "elasticache:*", "kms:*", "secretsmanager:*",
           "logs:*", "cloudtrail:*", "config:*", "guardduty:*",
           "securityhub:*", "events:*", "lambda:*", "signer:*",
-          "sns:*", "sqs:*", "ecr:*"
+          "sns:*", "sqs:*", "ecr:*", "apigateway:*"
         ]
         Resource  = "*"
         Condition = { StringEquals = { "aws:RequestedRegion" = var.aws_region } }

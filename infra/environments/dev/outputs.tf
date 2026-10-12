@@ -56,8 +56,13 @@ output "kms_key_arn" {
 }
 
 output "smoke_test_url" {
-  value = "${var.acm_certificate_arn != null ? "https" : "http"}://${module.edge.alb_dns_name}"
+  value = "${module.edge.api_url}/health"
 }
 output "database_secret_arn" {
   value = module.rds.master_secret_arn
 }
+
+output "api_url" { value = module.edge.api_url }
+output "application_deployment" { value = module.compute.application_deployment }
+output "migration_task" { value = module.compute.migration_task }
+output "ecs_security_group" { value = module.compute.ecs_security_group_id }

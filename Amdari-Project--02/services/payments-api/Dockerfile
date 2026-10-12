@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --upgrade --no-cache-dir pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 COPY . .
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem', '/app/rds-global-bundle.pem')"
 RUN rm -f *.lock *old.txt *bak.txt Pipfile* poetry*
 
 # Create a non-root user and group, then change ownership of the working directory
@@ -24,4 +25,4 @@ USER appuser
 
 EXPOSE 8001
 
-CMD ["python", "-m", "app.main"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8001", "--workers", "2", "--worker-tmp-dir", "/dev/shm", "--access-logfile", "-", "app.main:create_app()"]

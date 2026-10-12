@@ -2,6 +2,8 @@
 
 import os
 
+from urllib.parse import quote
+
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -21,6 +23,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=os.getenv(
         "RATELIMIT_STORAGE_URI",
-        "redis://redis:6379/2",
+        (f"rediss://:{quote(os.environ['REDIS_AUTH_TOKEN'], safe='')}@{os.environ['REDIS_HOST']}:6379/2?ssl_cert_reqs=required"
+         if os.environ.get("REDIS_HOST") else "redis://redis:6379/2"),
     ),
 )

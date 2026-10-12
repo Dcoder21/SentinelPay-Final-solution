@@ -13,3 +13,4 @@ phonenumbers>=9.0.37
 Flask-Limiter>=3.5.0
 msgpack>=1.2.1
 setuptools>=78.1.1
+urllib3>=2.8.0,<3

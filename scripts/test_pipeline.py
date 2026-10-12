@@ -53,4 +53,18 @@ assert policy_result({'resource_changes': [{
     'change': {'after': {'policy': json.dumps({'Statement': [{'Effect': 'Allow', 'Action': '*', 'Resource': '*'}]})}},
 }]}) > 0
 
-print('Deployment dependencies and 10 positive/negative OPA cases passed.')
+# Public ports are forbidden even when the address resembles the old ALB rule.
+for port in (80,443):
+    assert policy_result({'resource_changes': [{
+        'address': 'module.edge.aws_vpc_security_group_ingress_rule.https',
+        'type': 'aws_vpc_security_group_ingress_rule',
+        'change': {'after': {'cidr_ipv4': '0.0.0.0/0', 'from_port': port, 'to_port': port, 'ip_protocol': 'tcp'}},
+    }]}) > 0
+image_steps = jobs['trivy-images']['steps']
+image_commands = [s.get('run','') for s in image_steps]
+scan_gate = next(i for i,c in enumerate(image_commands) if 'HIGH or CRITICAL vulnerabilities' in c)
+integration = next(i for i,c in enumerate(image_commands) if 'python scripts/test_images.py' in c)
+package = next(i for i,c in enumerate(image_commands) if 'docker save ' in c)
+assert scan_gate < integration < package
+assert any('download-artifact' in s.get('uses','') and s['with']['name'] == 'scanned-application-images' for s in steps)
+print('Deployment dependencies, scanned image ordering, and 12 positive/negative OPA cases passed.')

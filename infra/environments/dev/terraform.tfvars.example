@@ -1,5 +1,5 @@
 # Dev environment inputs for infra/environments/dev.
-# Filled for the first HTTP-only infrastructure smoke test in eu-west-1.
+# Testing APIs behind AWS-managed HTTPS in eu-west-1.
 # Versioned pipeline inputs; do not put AWS credentials or secrets here.
 
 # AWS region where AWS resources will be created. The S3 state-backend region
@@ -16,29 +16,8 @@ availability_zones   = ["eu-west-1a", "eu-west-1b"]
 
 # GitHub trust is configured separately in Bootstrap.
 
-# A real ACM certificate ARN in aws_region is needed for the HTTPS listener.
-# For this first dev smoke test, enable HTTP explicitly without a certificate.
-# Switch this off and supply an issued ACM ARN before deploying real APIs.
-acm_certificate_arn    = null
-enable_http_smoke_test = true
-
-# Permit HTTPS image pulls from Docker Hub via the existing NAT gateway.
-# Disabling this requires private registry/API endpoints and their egress rules.
+# API Gateway provides public HTTPS with an AWS-managed certificate.
+acm_certificate_arn = null
+enable_http_smoke_test = false
 allow_public_https_egress = true
-
-# Current compute module creates one placeholder container. Replace these with
-# settings for the image/service you intend to deploy; this is not yet wired to
-# both SentinelPay APIs.
-container_image = "nginx:alpine"
-container_port  = 80
-desired_count   = 1
-
-# Leave null to use the default project-environment prefix.
-name_prefix = null
-
-# Optional common resource tags.
-tags = {
-  Project     = "sentinelpay"
-  Environment = "dev"
-  ManagedBy   = "Terraform"
-}
+desired_count = 1

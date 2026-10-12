@@ -2,6 +2,7 @@ data "aws_caller_identity" "current" {}
 
 # ALB access logs support SSE-S3, rather than SSE-KMS.
 resource "aws_s3_bucket" "alb_logs" {
+  # checkov:skip=CKV_AWS_144:Testing environment is single-region; cross-region disaster recovery is not configured
   # checkov:skip=CKV_AWS_145:ALB access log delivery supports SSE-S3 only
   bucket = "${var.project_name}-${var.environment}-alb-logs-${random_id.bucket_suffix.hex}"
 }
@@ -71,6 +72,17 @@ resource "aws_s3_bucket_policy" "access_logs" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid       = "ALBBucketAccessLogDelivery"
+        Effect    = "Allow"
+        Principal = { Service = "logging.s3.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.access_logs.arn}/alb-bucket/*"
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+          ArnLike      = { "aws:SourceArn" = aws_s3_bucket.alb_logs.arn }
+        }
+      },
+      {
         Sid       = "KYCLogDelivery"
         Effect    = "Allow"
         Principal = { Service = "logging.s3.amazonaws.com" }
@@ -91,4 +103,15 @@ resource "aws_s3_bucket_policy" "access_logs" {
       }
     ]
   })
+}
+
+resource "aws_s3_bucket_notification" "alb_logs" {
+  bucket      = aws_s3_bucket.alb_logs.id
+  eventbridge = true
+}
+resource "aws_s3_bucket_logging" "alb_logs" {
+  bucket        = aws_s3_bucket.alb_logs.id
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "alb-bucket/"
+  depends_on    = [aws_s3_bucket_policy.access_logs]
 }

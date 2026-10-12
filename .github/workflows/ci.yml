@@ -243,6 +243,18 @@ jobs:
 
           echo "No HIGH or CRITICAL vulnerabilities detected."
 
+      - name: Test scanned images with PostgreSQL and Redis
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: python scripts/test_images.py
+      - name: Package images that passed both vulnerability scans
+        run: docker save sentinelpay-payments:${{ github.sha }} sentinelpay-kyc:${{ github.sha }} -o scanned-images.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scanned-application-images
+          path: scanned-images.tar
+          retention-days: 1
+
   terraform-validate:
     name: Terraform Format and Validation
     runs-on: ubuntu-latest
@@ -309,6 +321,7 @@ jobs:
     env:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
+      TF_VAR_image_tag: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v3
@@ -340,14 +353,13 @@ jobs:
       - name: Apply the plan that passed OPA
         working-directory: infra/environments/dev
         run: terraform apply -input=false -lock-timeout=5m tfplan
-      - name: Verify ECS and the smoke-test endpoint
-        working-directory: infra/environments/dev
-        run: |
-          cluster=$(terraform output -raw ecs_cluster)
-          service=$(terraform output -raw ecs_service)
-          aws ecs wait services-stable --region eu-west-1 --cluster "$cluster" --services "$service"
-          url=$(terraform output -raw smoke_test_url)
-          curl --fail --retry 5 --retry-delay 10 "$url"
+      - uses: actions/download-artifact@v4
+        with:
+          name: scanned-application-images
+      - name: Deploy scanned images and migrate schema
+        run: python scripts/deploy_applications.py
+      - name: Verify HTTPS and authenticated API integration
+        run: python scripts/verify_deployment.py
       - name: Remove runner-local plan files
         if: always()
         working-directory: infra/environments/dev

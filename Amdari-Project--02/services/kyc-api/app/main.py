@@ -30,6 +30,7 @@ def create_app():
     # FUNCTIONALITY:
     # Lightweight liveness endpoint for deployment/container health checks.
     @app.route("/health")
+    @app.route("/kyc/health")
     def health():
         return jsonify({
             "status": "ok",
