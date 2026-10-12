@@ -100,6 +100,7 @@ resource "aws_iam_role_policy" "github_infrastructure" {
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-${var.environment}-*"
         Condition = { StringEquals = { "iam:PassedToService" = [
           "ecs-tasks.amazonaws.com", "lambda.amazonaws.com", "monitoring.rds.amazonaws.com",
+          "rds.amazonaws.com", "vpc-flow-logs.amazonaws.com",
           "cloudtrail.amazonaws.com", "config.amazonaws.com"
         ] } }
       },
