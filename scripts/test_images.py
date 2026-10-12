@@ -35,9 +35,11 @@ def main():
             docker("run", "-d", "--name", "test-postgres", "--network", "sentinelpay-test", "--env-file", master, "postgres:17-alpine")
             docker("run", "-d", "--name", "test-redis", "--network", "sentinelpay-test", "redis:7-alpine")
             for _ in range(30):
-                if subprocess.run(["docker", "exec", "test-postgres", "pg_isready", "-U", "sentinelpay_admin"], stdout=subprocess.DEVNULL).returncode == 0:
+                if subprocess.run(["docker", "exec", "test-postgres", "pg_isready", "-h", "127.0.0.1", "-U", "sentinelpay_admin", "-d", "sentinelpay"], stdout=subprocess.DEVNULL).returncode == 0:
                     break
                 time.sleep(2)
+            else:
+                raise RuntimeError("PostgreSQL TCP listener did not become ready")
             migration = envfile("migration.env", {"DATABASE_URL": f"postgresql://sentinelpay_admin:{password}@test-postgres/sentinelpay", "APP_DB_PASSWORD": app_password})  # gitleaks:allow URL interpolates a generated disposable test password
             docker("run", "--rm", "--network", "sentinelpay-test", "--env-file", migration, "sentinelpay-payments:" + sha, "python", "-m", "app.migrate")
             common = {"DATABASE_URL": f"postgresql://sentinelpay_app:{app_password}@test-postgres/sentinelpay", "JWT_PUBLIC_KEY": public.read_text(), "AWS_REGION": "eu-west-1", "AWS_EC2_METADATA_DISABLED": "true"}  # gitleaks:allow URL interpolates a generated disposable test password
